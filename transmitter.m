@@ -1,6 +1,6 @@
 classdef transmitter
 
-    methods
+    methods (Static)
 
         function prepare_samples()
         end
@@ -12,12 +12,8 @@ classdef transmitter
             t_text = gensupport.dummy_text(num_chars);
             t_samples = gensupport.str_to_binvec(t_text);
 
-            % block_data = arrayfun(@(x) encode_data(t_samples, prefix_length), zeros(num_channels));
-
             % map the data encode
             data = repmat(t_samples, num_channels, 1);
-
-            % data = repmat(encode_data(t_samples, prefix_length), num_channels, 1);
         end
 
         function approximate_channel()
@@ -27,19 +23,20 @@ classdef transmitter
         % ==================
         %   Encoding
         % ==================
-        function create_real_data(num_channels, length)
-            % data = arrayfun(@(x))
-
-        end
-
         function out = encode_block(channel_source, prefix_length)
             % Encode a set of data with a cyclic prefix
             % Expects a list of arrays where each array is the data to be sent on each channel
             %
             % Returns a list of arrays where each array is the data to be sent on each channel
             % Final arrays will be extended by the prefix_length
+            A = channel_source;
+            row_len = size(A, 2) + prefix_length;
+            out = zeros(size(A, 1), row_len);
 
-            out = arrayfun(@(x) cyclic_prefix(x, prefix_length), channel_source);
+            for k = 1:size(A, 1)
+                out(k, :) = transmitter.cyclic_prefix(A(k, :), prefix_length);
+            end
+
         end
 
         function out = cyclic_prefix(data, prefix_length)
@@ -50,20 +47,9 @@ classdef transmitter
             %    symb1 = hstack([ofdm1[-NCP:], ofdm1])
 
             % Grab out the last N samples where N = prefix_length
-            final = data(length(data) - prefix_length + 1:end);
-
-            % Combine them
-            out = [final, data];
+            out = [data(length(data) - prefix_length + 1:end), data];
         end
 
     end
 
-end
-
-% ensure the training data is right
-function test_training_data()
-end
-
-% ensure the training data is right
-function channel_approx()
 end

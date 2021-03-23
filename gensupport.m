@@ -1,7 +1,7 @@
 % General support methods
 classdef gensupport
 
-    methods
+    methods (Static)
 
         function out = dummy_text(num_chars)
             % Generate dummy text for X characters long.
