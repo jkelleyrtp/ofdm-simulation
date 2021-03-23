@@ -1,8 +1,6 @@
 % General support methods
 classdef gensupport
-
     methods (Static)
-
         function out = dummy_text(num_chars)
             % Generate dummy text for X characters long.
             % Each character is 8 bits
@@ -33,11 +31,5 @@ classdef gensupport
             % Convert text to a vector of 1s and -1s
             out = (reshape(dec2bin(S, 8).' - '0', 1, [])') .* 2 - 1;
         end
-
-        function estimate_channel()
-
-        end
-
     end
-
 end
