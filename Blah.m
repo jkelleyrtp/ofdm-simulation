@@ -1,3 +1,0 @@
-classdef Blah
-
-end

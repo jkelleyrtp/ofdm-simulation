@@ -1,12 +1,15 @@
 classdef transmitter
     methods (Static)
 
-        function data = create_data(num_channels, num_chars)
+        function data = create_data(block_count, num_chars)
+            % Create some dummy text and encode it into 1s and -1s
             t_text = dummy_text(num_chars);
-            t_samples = str_to_binvec(t_text);
-
-            % map the data encode
-            data = repmat(t_samples, num_channels, 1);
+            t_samples = str_to_binvec(t_text).';
+            data = repmat(t_samples, block_count, 1);
+         end
+        
+        function preamble = create_preamble(preamble_size)
+            preamble = 1:1:preamble_size;
         end
 
         function out = encode_block(channel_source, prefix_length)
@@ -20,14 +23,18 @@ classdef transmitter
             out = zeros(size(A, 1), row_len);
 
             for k = 1:size(A, 1)
-                out(k, :) = cyclic_prefix(A(k, :), prefix_length);
+                iffted = ifft(A(k, :));
+                out(k, :) = cyclic_prefix(iffted, prefix_length);
             end
-
+            
+%             preamble = create_preamble(preamble_size);
+%             out = [preamble out];
         end
 
         function [sent, received] = transmit(encoded_block, prefix_length, block_count, num_chars)
             total_len = block_count * (num_chars * 8 + prefix_length);
-            sent = reshape(encoded_block, total_len, 1)';
+%             sent = transpose(reshape(encoded_block, total_len, 1));
+            sent = reshape(encoded_block.', 1, total_len);
             received = nonflat_channel(sent);
         end
     end
@@ -49,7 +56,7 @@ function out = dummy_text(num_chars)
     % Each character is 8 bits
     dummy = {
         'I met a traveller from an antique land, '
-        'Who said—“Two vast and trunkless legs of stone '
+        'Who said Two vast and trunkless legs of stone '
         'Stand in the desert. . . . Near them, on the sand, '
         'Half sunk a shattered visage lies, whose frown, '
         'And wrinkled lip, and sneer of cold command, '
@@ -66,6 +73,7 @@ function out = dummy_text(num_chars)
 
     contents = sprintf('%s', dummy{:});
 
+    
     % return the first N chars from dummy
     out = contents(1:num_chars);
 end
