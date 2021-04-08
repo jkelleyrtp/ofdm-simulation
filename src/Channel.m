@@ -1,16 +1,20 @@
 classdef Channel
     properties
-        SNR
+        SNR = 30;
     end
     methods (Static)
-        function obj = Channel(SNR_dB)
-            obj.SNR = 10^(SNR_dB / 10); % nominal SNR
+        function obj = Channel()
         end
     end
     methods
-        function [x] = send_perfect(obj, x)
+        function self = with_snr(self, SNR_dB)
+            self.SNR = 10^(SNR_dB / 10); % nominal SNR
         end
-        
+
+        function [x] = send_perfect(obj, x)
+            % Send data through the channel perfectly with no loss
+        end
+
         function [y] = send_nonflat(obj, x)
             % This is the function provided in class to simulate the channel for
             % the ofdm implementation.

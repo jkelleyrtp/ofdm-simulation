@@ -1,13 +1,17 @@
 classdef Transmitter
     properties
-        block_size = 0;
+        block_size = 64;
         prefix_length = 0;
-        preamble_enabled = false;
         training_blocks = 1;
+        estimation_blocks = 1;
+        preamble_blocks = 0;
     end
 
     methods
-        function self = Transmitter(block_size)
+        function self = Transmitter()
+        end
+
+        function self = with_block_size(self, block_size)
             self.block_size = block_size;
         end
 
@@ -15,22 +19,26 @@ classdef Transmitter
             self.prefix_length = prefix_length;
         end
 
-        function self = with_preamble(self)
-            self.preamble_enabled = true;
+        function self = with_preamble(self, preamble_blocks)
+            self.preamble_blocks = preamble_blocks;
+        end
+
+        function self = with_training_blocks(self, training_blocks)
+            self.training_blocks = training_blocks;
         end
 
         function samples = transmit(self, bin_stream)
             % Take in a datastream of 1s and 0s and convert it to 1s and -1s
-%             bpsk_stream = bin_stream;
+            %             bpsk_stream = bin_stream;
             bpsk_stream = (bin_stream .* 2) - 1;
 
             % Reshape the stream into an abitrary # of columns with a fixed size
             % The number of blocks automatically expands to fit the input data
-            block_data = reshape(bpsk_stream , [], self.block_size);
-            
+            block_data = reshape(bpsk_stream, [], self.block_size);
+
             training_signals = Utils.training_signals(self.block_size);
             training_signals = repmat(training_signals, 1, self.training_blocks);
-            
+
             block_data = [training_signals; block_data];
             block_data = prefix_block(block_data, self.prefix_length);
 
@@ -42,7 +50,7 @@ classdef Transmitter
             end
 
             % Flatten the block structure down into a single stream
-%             transpose is very important, for whatever erason
+            %             transpose is very important, for whatever erason
             samples = reshape(transpose(block_data), 1, []);
 
             % Add features to lock onto the signal easier
@@ -55,16 +63,16 @@ end
 
 function block_data = prefix_block(blockstream, prefix_length)
     % Rehsape the data into the appropraite block sizes
-    block_data = zeros(...       
+    block_data = zeros(...
         size(blockstream, 1), ... % Column length (with prefix if prefixenabled)
-        size(blockstream, 2)+ prefix_length  ... % Number of rows
+        size(blockstream, 2) + prefix_length ... % Number of rows
         );
 
     % Encode the data with a prefix
     stop = size(blockstream, 1);
     for k = 1:stop
-        iffted = ifft(blockstream(k,:));
-        block_data(k,:) = cyclic_prefix(iffted, prefix_length);
+        iffted = ifft(blockstream(k, :));
+        block_data(k, :) = cyclic_prefix(iffted, prefix_length);
     end
 end
 

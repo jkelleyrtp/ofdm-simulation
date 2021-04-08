@@ -1,13 +1,17 @@
 classdef Receiver
     properties
-        block_size % Need to be set to use
+        block_size = 64;
         prefix_length = 0;
-        training_blocks = 1;        
-        preamble_enabled = false;
+        training_blocks = 1;
+        estimation_blocks = 1;
+        preamble_blocks = 0;
     end
 
     methods
-        function self = Receiver(block_size)
+        function self = Receiver()
+        end
+
+        function self = with_block_size(self, block_size)
             self.block_size = block_size;
         end
 
@@ -15,80 +19,42 @@ classdef Receiver
             self.prefix_length = prefix_length;
         end
 
-        function self = with_preamble(self)
-            % Enable the frequency preamble
-            self.preamble_enabled = true;
+        function self = with_preamble(self, preamble_blocks)
+            self.preamble_blocks = preamble_blocks;
+        end
+
+        function self = with_training_blocks(self, training_blocks)
+            self.training_blocks = training_blocks;
         end
 
         function samples = receive(self, received)
-              locking = Utils.locking_features();
-            locking_len = size(locking, 2);
-            locking_spaced = [locking ];
-            locking = locking_spaced;
-%             locking = DataLayer.create_transmission(10) .* 2 - 1;
-            
-            normalized_rx = real(received);
-            [tshift, lags] = xcorr(  real(normalized_rx ), locking);
-           
-%             hold on 
-%             stem(normalized_rx );
-%             stem(locking );
-%             legend("received", "locking");
-%             hold off
-%           
-%             hold on
-%             figure 
-%             stem(lags);
-%             hold off
-% 
-%             hold on
-%             figure 
-%             stem(tshift);
-%             hold off
+            locking_features = Utils.locking_features();
+            [tshift, lags] = xcorr(real(received), locking_features);
 
             % Get the index of the greatest xcorr shift
             [~, index] = max(abs(tshift));
 
             % Resize the received data, removing the locking features
-            shiftamount = lags(index)
-            corrected = received(shiftamount + 1:end);
-%             corrected = received(shiftamount  + 1:end);
-            
-%             hold on
-%             figure
-%             stem(corrected)
-%             hold off
-%             
-% 
-%             
-%             lockingsize = size(locking, 2);
-            corrected = corrected(locking_len + 1:end);
+            timing_correction = lags(index) + 1;
+            locking_offset = size(locking_features, 2) + 1;
+            corrected = received((timing_correction + locking_offset):end);
 
-%             hold on
-%             figure
-%             stem(corrected)
-%             hold off
-            
-            % now, we should have a known training signal
+            % Create an output buffer to push the data into
+            channel_length = self.block_size + self.prefix_length;
             decoded = [];
 
             % Length of a single received channel block
-            channel_length = self.block_size + self.prefix_length;
-            received_len = size(corrected, 2);
-
-            for idx = 1:channel_length:(received_len-channel_length + 1)
-                subblock = corrected(...
-                    idx + self.prefix_length ...
-                    : ...
-                    idx + self.prefix_length + self.block_size - 1 ...
-                    );
+            for idx = 1:channel_length:(size(corrected, 2) - channel_length + 1)
+                offset = idx + self.prefix_length;
+                subblock = corrected(offset:(offset + self.block_size - 1));
 
                 % Add the block as a new row
                 decoded = [decoded; fft(subblock)];
             end
 
-            % grab the first n entries and use them to estimate the channel
-            estimator = decoded(1, :);
+            % grab the first signal estimation entries and use them to estimate the channel
+            % TODO: enable multi-sample channel estimation
+            estimator = decoded(self.estimation_blocks, :);
             training = Utils.training_signals(self.block_size);
             hk = estimator ./ training;
 
